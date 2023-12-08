@@ -546,7 +546,6 @@ class LLFF(Dataset):
             # # Attempt to load Blender/NGP format if COLMAP data not present.
             # pose_data = load_blender_posedata(self.data_dir)
             raise ValueError('COLMAP data not found.')
-        image_names, poses, pixtocam, distortion_params, camtype = pose_data
 
         # Previous NeRF results were generated with images sorted by filename,
         # use this flag to ensure metrics are reported on the same test set.
