@@ -536,11 +536,11 @@ class LLFF(Dataset):
             factor = 1
 
         # Copy COLMAP data to local disk for faster loading.
-        colmap_dir = os.path.join(self.data_dir, 'sparse/0/')
+        colmap_dir = os.path.join(self.data_dir, 'odometry')
 
         # Load poses.
         if utils.file_exists(colmap_dir):
-            pose_data = NeRFSceneManager(colmap_dir).process()
+            pixtocam , image_names, poses, distortion_params, camtype = load_llff_posedata(colmap_dir)
         else:
             # # Attempt to load Blender/NGP format if COLMAP data not present.
             # pose_data = load_blender_posedata(self.data_dir)
@@ -791,6 +791,49 @@ class TanksAndTemplesFVS(Dataset):
 
             self.images = self.images[indices]
             self.camtoworlds = self.camtoworlds[indices]
+
+def load_llff_posedata(colmap_dir):
+
+    # Load intrinsic matrix
+    print(colmap_dir)
+    camerasfile = os.path.join(colmap_dir, "camera_matrix.csv")
+    intrisic_matrix = odometry_utils.read_intrisic_matrix(camerasfile)
+    fx = float(intrisic_matrix[0][0])
+    fy = float(intrisic_matrix[1][1]) 
+    cx = float(intrisic_matrix[0][2])
+    cy = float(intrisic_matrix[1][2])
+    pixtocam = np.linalg.inv(camera_utils.intrinsic_matrix(fx, fy, cx, cy))
+
+    # Load extrinsic matrices
+    imagesfile = os.path.join(colmap_dir, "odometry.csv")
+    imdata = odometry_utils.read_images_text(imagesfile)
+
+    # Extract extrinsic matrices in world-to-camera format.
+    w2c_mats = []
+    bottom = np.array([0, 0, 0, 1]).reshape(1, 4)
+    for k in imdata:
+        im = imdata[k]
+        rot = im.qvec2rotmat()
+        trans = im.tvec.reshape(3, 1)
+        w2c = np.concatenate([np.concatenate([rot, trans], 1), bottom], axis=0)
+        w2c_mats.append(w2c)
+    w2c_mats = np.stack(w2c_mats, axis=0)
+
+    # Convert extrinsics to camera-to-world.
+    c2w_mats = np.linalg.inv(w2c_mats)
+    poses = c2w_mats[:, :3, :4]
+
+    image_names = [imdata[k].name[1:] for k in imdata]
+    print("\nNumber of valid images data: ",len(image_names))
+
+    # Switch from COLMAP (right, down, fwd) to NeRF (right, up, back) frame.
+    poses = poses @ np.diag([1, -1, -1, 1])
+
+    # Get distortion parameters. (For SIMPLE_PINHOLE / PINHOLE)
+    params = None
+    camtype = camera_utils.ProjectionType.PERSPECTIVE
+
+    return pixtocam , image_names, poses, params, camtype
 
 
 class DTU(Dataset):
