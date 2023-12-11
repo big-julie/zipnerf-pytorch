@@ -808,19 +808,17 @@ def load_llff_posedata(colmap_dir):
     imagesfile = os.path.join(colmap_dir, "odometry.csv")
     imdata = odometry_utils.read_images_text(imagesfile)
 
-    # Extract extrinsic matrices in world-to-camera format.
-    w2c_mats = []
+    # Extract extrinsic matrices in camera-to-world format.
+    c2w_mats = []
     bottom = np.array([0, 0, 0, 1]).reshape(1, 4)
     for k in imdata:
         im = imdata[k]
         rot = im.qvec2rotmat()
         trans = im.tvec.reshape(3, 1)
-        w2c = np.concatenate([np.concatenate([rot, trans], 1), bottom], axis=0)
-        w2c_mats.append(w2c)
-    w2c_mats = np.stack(w2c_mats, axis=0)
+        c2w = np.concatenate([np.concatenate([rot, trans], 1), bottom], axis=0)
+        c2w_mats.append(c2w)
+    c2w_mats = np.stack(c2w_mats, axis=0)
 
-    # Convert extrinsics to camera-to-world.
-    c2w_mats = np.linalg.inv(w2c_mats)
     poses = c2w_mats[:, :3, :4]
 
     image_names = [imdata[k].name[1:] for k in imdata]
