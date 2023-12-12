@@ -542,6 +542,7 @@ class LLFF(Dataset):
         # Load poses.
         if utils.file_exists(colmap_dir):
             pixtocam , image_names, poses, distortion_params, camtype = load_llff_posedata(colmap_dir)
+            # image_names, poses, pixtocam, distortion_params, camtype = NeRFSceneManager(colmap_dir).process()
         else:
             # # Attempt to load Blender/NGP format if COLMAP data not present.
             # pose_data = load_blender_posedata(self.data_dir)
